@@ -1,0 +1,1086 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Quiz Generator</title>
+    <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+    <script>
+        // Configure MathJax to recognize single dollar signs for inline math
+        window.MathJax = {
+            tex: {
+                inlineMath: [['$', '$'], ['\\(', '\\)']]
+            }
+        };
+    </script>
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            min-height: 100vh;
+            color: #1d1d1f;
+            line-height: 1.6;
+            /* Add padding to body to account for the fixed header */
+            padding-top: 180px; 
+        }
+
+        .fixed-header {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            background: rgba(255, 255, 255, 0.85);
+            backdrop-filter: blur(20px);
+            padding: 20px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            z-index: 100;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 12px; /* Added for spacing */
+        }
+
+        .prompt-input {
+            width: 100%;
+            max-width: 860px; /* Match container width */
+            padding: 16px 20px;
+            border: 2px solid #e8e8ed;
+            border-radius: 12px;
+            font-size: 1rem;
+            font-family: inherit;
+            background: #fff;
+            transition: all 0.3s ease;
+            resize: none; /* Disable manual resize */
+            min-height: 56px;
+        }
+
+        .prompt-input:focus {
+            outline: none;
+            border-color: #007aff;
+            box-shadow: 0 0 0 4px rgba(0, 122, 255, 0.1);
+        }
+
+        #helpBtn {
+            padding: 0;
+            width: 40px;
+            height: 40px;
+            font-size: 1.25rem;
+            line-height: 1;
+            flex-shrink: 0; /* Prevent button from shrinking */
+        }
+
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 0 20px 40px 20px; /* Adjust padding */
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 40px;
+        }
+
+        .action-bar-container {
+            position: fixed;
+            top: 116px; /* Height of the fixed-header */
+            left: 0;
+            width: 100%;
+            background: rgba(230, 235, 240, 0.85);
+            backdrop-filter: blur(20px);
+            padding: 10px 20px;
+            z-index: 99;
+            border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+        }
+
+        .action-bar {
+            max-width: 900px;
+            margin: 0 auto;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .action-bar .btn-primary {
+            font-weight: 600; /* Make it a bit bolder */
+        }
+
+        .count-input {
+            width: 60px;
+            padding: 8px 12px;
+            border-radius: 8px;
+            border: 1px solid #ccc;
+            font-size: 1rem;
+            text-align: center;
+        }
+
+        .btn-action[aria-label] {
+            width: 44px; /* Give the icon buttons a fixed square size */
+            padding: 8px;
+        }
+
+        .btn-action {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 8px 16px;
+            background: #fff;
+            border: 1px solid #ccc;
+            font-size: 0.9rem;
+        }
+
+        .btn-action svg {
+            margin: 0;
+        }
+
+        .separator {
+            width: 1px;
+            height: 24px;
+            background-color: #ccc;
+            margin: 0 5px;
+        }
+
+        .controls-section {
+            background: rgba(255, 255, 255, 0.9);
+            backdrop-filter: blur(20px);
+            border-radius: 20px;
+            padding: 32px;
+            margin-bottom: 32px;
+            box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+        }
+        
+        .button-group {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+        
+        .modal-buttons {
+            display: flex;
+            gap: 12px;
+            justify-content: center;
+            margin-top: 24px;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 50px;
+            font-size: 1rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-family: inherit;
+            position: relative;
+            overflow: hidden;
+            min-height: 44px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #007aff, #5856d6);
+            color: white;
+        }
+
+        .btn-secondary {
+            background: rgba(255, 255, 255, 0.8);
+            color: #1d1d1f;
+            border: 1px solid #e8e8ed;
+        }
+        
+        .btn-fact-check {
+            background: #f0f0f0;
+            color: #555;
+            font-size: 0.9rem;
+            padding: 8px 16px;
+            margin-top: 16px;
+            display: none;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+        }
+
+        .quiz-container {
+            background: rgba(255, 255, 255, 0.9);
+            backdrop-filter: blur(20px);
+            border-radius: 20px;
+            padding: 32px;
+            box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            display: none;
+            margin-top: 32px;
+        }
+
+        .quiz-header {
+            text-align: center;
+            margin-bottom: 32px;
+            padding-bottom: 20px;
+            border-bottom: 1px solid #e8e8ed;
+        }
+
+        .question {
+            margin-bottom: 32px;
+            padding: 24px;
+            background: #f9f9f9;
+            border-radius: 16px;
+            border-left: 4px solid #007aff;
+        }
+
+        .options {
+            display: grid;
+            gap: 12px;
+        }
+
+        .option {
+            position: relative;
+            padding: 12px 16px;
+            background: white;
+            border: 2px solid #e8e8ed;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            font-size: 1rem;
+            text-align: left;
+        }
+
+        .option.selected { border-color: #007aff; background: #007aff; color: white; }
+        .option.correct { border-color: #34c759; background: #34c759; color: white; }
+        .option.incorrect { border-color: #ff3b30; background: #ff3b30; color: white; }
+        
+        .write-in-answer {
+            min-height: 44px; padding: 12px 16px; background: white;
+            border: 2px solid #e8e8ed; border-radius: 10px; cursor: text;
+            transition: all 0.2s ease; font-size: 1rem; margin-top: 16px;
+            color: #86868b; font-style: italic; outline: none; position: relative;
+        }
+        .write-in-answer:focus { border-color: #007aff; box-shadow: 0 0 0 3px rgba(0, 122, 255, 0.3); color: #1d1d1f; font-style: normal; }
+        .write-in-answer.answered { color: #1d1d1f; font-style: normal; }
+        .write-in-answer.correct { background: rgba(52, 199, 89, 0.1); border-color: #34c759; }
+        .write-in-answer.incorrect { background: rgba(255, 59, 48, 0.1); border-color: #ff3b30; }
+        .write-in-answer.grading { background: rgba(255, 193, 7, 0.1); border-color: #ffc107; }
+
+        .write-in-answer.correct::after, .option.correct::after {
+            content: '✓ Correct';
+            position: absolute;
+            top: 8px;
+            right: 8px;
+            background: #34c759;
+            color: white;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            font-weight: bold;
+        }
+
+        .write-in-answer.incorrect::after, .option.incorrect::after {
+            content: '✗ Incorrect';
+            position: absolute;
+            top: 8px;
+            right: 8px;
+            background: #ff3b30;
+            color: white;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            font-weight: bold;
+        }
+
+        .file-input { display: none; }
+        .loading { text-align: center; padding: 40px; color: #86868b; }
+        .loading::after { content: ''; display: inline-block; width: 20px; height: 20px; border: 2px solid #e8e8ed; border-top: 2px solid #007aff; border-radius: 50%; animation: spin 1s linear infinite; margin-left: 10px; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+
+        .fact-check-result { 
+            margin-top: 16px; 
+            padding: 16px; 
+            background: #eef2f5; 
+            border-radius: 8px; 
+            font-size: 0.95rem; 
+            color: #333; 
+            border-left: 3px solid #667eea; 
+            text-align: left; 
+            display: none;
+        }
+        
+        .modal { display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0, 0, 0, 0.5); backdrop-filter: blur(5px); }
+        .modal-content { background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(20px); margin: 5% auto; padding: 40px; border-radius: 20px; width: 90%; max-width: 600px; box-shadow: 0 20px 60px rgba(0, 0, 0, 0.2); border: 1px solid rgba(255, 255, 255, 0.3); text-align: center; max-height: 85vh; overflow-y: auto; }
+        .grade-display { font-size: 4rem; font-weight: 700; margin-bottom: 16px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+        .grade-fraction { font-size: 1.5rem; color: #86868b; margin-bottom: 32px; }
+        .topics-section { text-align: left; margin-top: 32px; }
+        .topics-title { font-size: 1.25rem; font-weight: 600; margin-bottom: 16px; color: #1d1d1f; }
+        .topic-item { background: #f9f9f9; border-radius: 8px; padding: 12px 16px; margin-bottom: 8px; border-left: 4px solid #ff3b30; }
+        .close { color: #86868b; float: right; font-size: 28px; font-weight: bold; cursor: pointer; line-height: 1; margin-top: -10px; }
+
+        .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
+        
+        /* Styles for code blocks */
+        pre {
+            background-color: #2d2d2d;
+            color: #f8f8f2;
+            padding: 16px;
+            border-radius: 8px;
+            overflow-x: auto;
+            font-family: 'SF Mono', 'Fira Code', 'Courier New', Courier, monospace;
+            font-size: 0.9em;
+            margin: 1em 0;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+        code {
+            font-family: 'SF Mono', 'Fira Code', 'Courier New', Courier, monospace;
+        }
+        /* For inline code */
+        :not(pre) > code {
+            background-color: rgba(0,0,0,0.05);
+            padding: 2px 5px;
+            border-radius: 4px;
+            font-size: 0.9em;
+        }
+
+        .help-content {
+            text-align: left;
+            margin-top: 24px;
+        }
+
+        .help-content ul {
+            list-style: none;
+            margin-top: 16px;
+        }
+
+        .help-content li {
+            margin-bottom: 20px;
+        }
+
+        .help-content code {
+            display: block;
+            background-color: #eef2f5;
+            padding: 12px;
+            border-radius: 8px;
+            margin-top: 8px;
+            font-family: 'SF Mono', 'Fira Code', Courier, monospace;
+            white-space: normal;
+            word-break: break-word;
+        }
+
+        .help-content .keyboard-shortcuts code {
+            display: inline;
+            background-color: #eef2f5;
+            padding: 12px;
+            border-radius: 8px;
+            margin-top: 8px;
+            font-family: 'SF Mono', 'Fira Code', Courier, monospace;
+            white-space: normal;
+            word-break: break-word;
+            width: 50px;
+        }
+    </style>
+</head>
+<body>
+    <header class="fixed-header">
+        <label for="promptInput" class="sr-only">Enter quiz topic or URL</label>
+        <textarea 
+            class="prompt-input" 
+            id="promptInput" 
+            placeholder="Enter a topic (e.g., '5 questions on JavaScript') and press Enter..."
+            aria-label="Enter a topic or URL to generate a quiz"
+        ></textarea>
+        <button id="helpBtn" class="btn btn-secondary" onclick="openHelpModal()" aria-label="Help">?</button>
+    </header>
+
+    <div class="action-bar-container">
+        <div class="action-bar">
+            <label for="questionCount" class="sr-only">Number of questions</label>
+            <input type="number" id="questionCount" class="count-input" value="5" min="1" max="20">
+            <button class="btn btn-action" onclick="appendToPrompt('multiple choice')">Multiple Choice</button>
+            <button class="btn btn-action" onclick="appendToPrompt('write-in')">Write-In</button>
+            <button class="btn btn-action" onclick="appendToPrompt('true/false')">True/False</button>
+            <button class="btn btn-action" onclick="appendToPrompt('code snippet')">Code</button>
+            <button class="btn btn-primary btn-action" onclick="agentEngine(document.getElementById('promptInput').value)">Generate Quiz</button>
+
+            <div class="separator"></div>
+
+            <button class="btn btn-action" onclick="agentEngine('import')" aria-label="Import Quiz">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
+            </button>
+            <button class="btn btn-action" onclick="agentEngine('export')" aria-label="Export Quiz">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+            </button>
+        </div>
+    </div>
+
+    <div class="container">
+        <main class="quiz-container" id="quizContainer" role="main" aria-live="polite"></main>
+    </div>
+
+    <div id="resultsModal" class="modal" aria-modal="true" role="dialog">
+        <div class="modal-content">
+            <span class="close" onclick="closeModal()" aria-label="Close results">&times;</span>
+            <h2>Quiz Complete!</h2>
+            <div class="grade-display" id="gradePercentage">0%</div>
+            <div class="grade-fraction" id="gradeFraction">0/0</div>
+            <div id="apiErrorNote" style="display:none; margin-top: 1rem; color: #856404; background-color: #fff3cd; padding: .75rem 1.25rem; border: 1px solid #ffeeba; border-radius: .25rem;"></div>
+            <section id="topicsSection" style="display: none;" aria-labelledby="topics-title">
+                <h3 id="topics-title" class="topics-title">Topics to review:</h3>
+                <div id="topicsList"></div>
+            </section>
+            <div class="modal-buttons">
+                <button class="btn btn-secondary" onclick="restartQuiz()">Restart Quiz</button>
+                <button class="btn btn-secondary" id="shareToXBtn" onclick="shareResultsToX()">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16" style="margin-right: 8px;">
+                        <path d="M12.6.75h2.454l-5.36 6.142L16 15.25h-4.937l-3.867-5.07-4.425 5.07H.316l5.733-6.57L0 .75h5.063l3.495 4.633L12.6.75ZM11.46 13.825h1.39L4.35 2.165H2.88l8.58 11.66Z"/>
+                    </svg>
+                    Share to X
+                </button>
+                <button class="btn btn-primary" onclick="closeModal()">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="helpModal" class="modal" aria-modal="true" role="dialog">
+        <div class="modal-content">
+            <span class="close" onclick="closeHelpModal()" aria-label="Close help">&times;</span>
+            <h2>How to Use the Quiz Generator</h2>
+            <div class="help-content">
+                <p>This tool uses an AI agent to understand your requests. You can type commands directly into the text box and press Enter.</p>
+                <ul>
+                    <li>
+                        <strong>Action Bar:</strong>
+                        <p>Use the action bar to quickly build a prompt.  First type your topic or a link to the topic, then set the number of questions and click a question type button to add it to the text box above.</p>
+                    </li>
+                    <li>
+                        <strong>Generate a Quiz:</strong>
+                        <p>Simply describe the quiz you want. You can mix and match types.</p>
+                        <code>5 multiple choice questions about Korn.<br>2 write-in questions about their first album.<br>3 true/false questions about nu-metal.</code>
+                    </li>
+                    <li>
+                        <strong>Import a Quiz:</strong>
+                        <p>Type the command <code>import</code> to open a file dialog and load a previously saved quiz (.json file).</p>
+                    </li>
+                    <li>
+                        <strong>Export a Quiz:</strong>
+                        <p>After generating a quiz, type the command <code>export</code> to download it as a .json file.</p>
+                    </li>
+                    <li class="keyboard-shortcuts">
+                        <strong>Keyboard Shortcuts:</strong>
+                        <p>When answering a multiple-choice quiz, you can press the keys</p><code>A</code>, <code>B</code>, <code>C</code>, or <code>D</code><p>to select an answer for the current question.</p>
+                    </li>
+                </ul>
+            </div>
+            <div class="modal-buttons">
+                <button class="btn btn-primary" onclick="closeHelpModal()">Got it</button>
+            </div>
+        </div>
+    </div>  
+
+    <script>
+        let currentQuiz = null;
+        let userAnswers = [];
+        const apiKey = ""; // The environment will provide the key
+        const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
+
+        // --- Agent & Core AI Functions ---
+
+        function appendToPrompt(type) {
+            const count = document.getElementById('questionCount').value;
+            const promptInput = document.getElementById('promptInput');
+            const currentText = promptInput.value.trim();
+            const addition = `${count} ${type} questions`;
+
+            if (currentText) {
+                promptInput.value = currentText + '\n' + addition;
+            } else {
+                promptInput.value = addition;
+            }
+            promptInput.focus();
+        }
+
+        async function getActionPlanFromGemini(userText) {
+            const schema = {
+                type: "OBJECT",
+                properties: {
+                    "actions": {
+                        type: "ARRAY",
+                        items: {
+                            type: "OBJECT",
+                            properties: {
+                                "prompt": { "type": "STRING" },
+                                "type": { "type": "STRING", "enum": ["multiple-choice", "write-in"] }
+                            },
+                            required: ["prompt", "type"]
+                        }
+                    }
+                },
+                required: ["actions"]
+            };
+
+            const fullPrompt = `You are an intelligent quiz planning AI. Your job is to break down a user's request into a series of concrete actions to generate a quiz.
+User Request: "${userText}"
+
+Based on the request, create a JSON object containing an array of "actions". Each action must have a "prompt" for generating a specific part of the quiz and a "type" which must be either "multiple-choice" or "write-in".
+
+For example, if the user asks for "5 questions about WWII and 3 write-in questions about the cold war", your output should be:
+{
+  "actions": [
+    { "prompt": "5 multiple choice questions about World War II", "type": "multiple-choice" },
+    { "prompt": "3 write-in questions about the Cold War", "type": "write-in" }
+  ]
+}
+
+If the user does not specify a type, assume "multiple-choice". If the user asks for both, create separate actions for each. Adhere strictly to the JSON schema.`;
+
+            const payload = {
+                contents: [{ role: "user", parts: [{ text: fullPrompt }] }],
+                generationConfig: { responseMimeType: "application/json", responseSchema: schema }
+            };
+
+            const response = await fetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+            if (!response.ok) throw new Error(`API Error: ${response.status}`);
+            const result = await response.json();
+            if (result.candidates?.[0]?.content?.parts?.[0]?.text) {
+                const parsed = JSON.parse(result.candidates[0].content.parts[0].text);
+                return parsed.actions;
+            }
+            throw new Error("Failed to create an action plan from the API response.");
+        }
+
+        async function agentEngine(text) {
+            const command = text.toLowerCase().trim();
+
+            // Handle simple commands first
+            if (command === 'export') {
+                downloadQuiz();
+                return; // Stop further execution
+            }
+            if (command === 'import') {
+                document.getElementById('fileInput').click();
+                return; // Stop further execution
+            }
+
+            // If it's not a simple command, proceed with quiz generation
+            if (!text) {
+                alert('Please enter a prompt.');
+                return;
+            }
+
+            const quizContainer = document.getElementById('quizContainer');
+            quizContainer.style.display = 'block';
+            quizContainer.innerHTML = '<div class="loading">Planning your quiz...</div>';
+
+            try {
+                const actions = await getActionPlanFromGemini(text);
+                
+                if (!actions || actions.length === 0) {
+                    throw new Error("Could not determine any actions from your request.");
+                }
+
+                const quizParts = [];
+                for (const action of actions) {
+                    // Update the loading message to show progress
+                    quizContainer.innerHTML = `<div class="loading">Generating: ${action.prompt}...</div>`;
+
+                    const isWriteIn = action.type === 'write-in';
+                    const part = await generateQuestionsWithGemini(action.prompt, isWriteIn);
+                    quizParts.push(part);
+                }
+
+                const finalQuiz = {
+                    title: quizParts[0].title, // Use the title from the first part
+                    questions: [],
+                    type: quizParts.length > 1 ? 'mixed' : quizParts[0].type
+                };
+
+                // Add the type to each question before adding it to the final list
+                quizParts.forEach(part => {
+                    const typedQuestions = part.questions.map(q => ({ ...q, type: part.type }));
+                    finalQuiz.questions.push(...typedQuestions);
+                });
+
+                currentQuiz = finalQuiz;
+                renderQuiz(currentQuiz);
+
+            } catch (error) {
+                console.error('Error in agent engine:', error);
+                quizContainer.innerHTML = `<div style="text-align: center; color: #ff3b30;">Failed to process your request. ${error.message}</div>`;
+            }
+        }
+
+        async function getGeminiTextResponse(prompt) {
+            const payload = {
+                contents: [{ role: "user", parts: [{ text: prompt }] }]
+            };
+            const response = await fetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+            if (!response.ok) throw new Error(`API Error: ${response.status}`);
+            const result = await response.json();
+            if (result.candidates?.[0]?.content?.parts?.[0]?.text) {
+                return result.candidates[0].content.parts[0].text;
+            }
+            throw new Error("Failed to get text response from API.");
+        }
+
+        async function generateQuestionsWithGemini(prompt, isWriteIn) {
+            const schema = isWriteIn ? {
+                type: "OBJECT",
+                properties: {
+                    "title": { "type": "STRING" },
+                    "type": { "type": "STRING", "enum": ["write-in"] },
+                    "questions": {
+                        "type": "ARRAY", "items": {
+                            "type": "OBJECT",
+                            "properties": {
+                                "question": { "type": "STRING" },
+                                "correct": { "type": "STRING" },
+                                "topic": { "type": "STRING" }
+                            }, "required": ["question", "correct", "topic"]
+                        }
+                    }
+                }, "required": ["title", "type", "questions"]
+            } : {
+                type: "OBJECT",
+                properties: {
+                    "title": { "type": "STRING" },
+                    "type": { "type": "STRING", "enum": ["multiple-choice"] },
+                    "questions": {
+                        "type": "ARRAY", "items": {
+                            "type": "OBJECT",
+                            "properties": {
+                                "question": { "type": "STRING" },
+                                "options": { "type": "ARRAY", "items": { "type": "STRING" } },
+                                "correct": { "type": "NUMBER" },
+                                "topic": { "type": "STRING" }
+                            }, "required": ["question", "options", "correct", "topic"]
+                        }
+                    }
+                }, "required": ["title", "type", "questions"]
+            };
+
+            const fullPrompt = `You are an AI that generates quizzes in a strict JSON format. Based on the user's request: "${prompt}", generate a quiz.
+**Instructions:**
+1.  Adhere strictly to the provided JSON schema. Do not output anything other than the JSON object.
+2.  For the "options" array in multiple-choice questions, the strings should be the direct text of the answer choices. Do NOT wrap them in extra quotes or escape them. For example, if an option is "Hello\\nWorld", the JSON value should be "Hello\\nWorld", NOT "\\"Hello\\\\nWorld\\"".
+3.  For mathematical formulas, use LaTeX format (e.g., '$\\frac{a}{b}$' for inline, '$$\\sum_{i=0}^n i^2$$' for block).
+4.  For computer code, wrap it in Markdown code fences (e.g., \`\`\`javascript\\nconst x = 1;\\n\`\`\`).`;
+            
+            const payload = {
+                contents: [{ role: "user", parts: [{ text: fullPrompt }] }],
+                generationConfig: { responseMimeType: "application/json", responseSchema: schema }
+            };
+
+            const response = await fetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+            if (!response.ok) throw new Error(`API Error: ${response.status}`);
+            const result = await response.json();
+            if (result.candidates?.[0]?.content?.parts?.[0]?.text) {
+                return JSON.parse(result.candidates[0].content.parts[0].text);
+            }
+            throw new Error("Failed to parse quiz from API response.");
+        }
+
+        async function gradeWriteInAnswer(question, userAnswer, correctAnswer) {
+            const gradingPrompt = `You are an intelligent grader for a quiz. Your task is to evaluate a user's written response.
+
+            **Evaluation Task:**
+            - **Question/Instruction:** "${question}"
+            - **An Example of a Correct Answer:** "${correctAnswer}"
+            - **The User's Submitted Answer:** "${userAnswer}"
+
+            **Your Goal:**
+            Determine if the "User's Submitted Answer" correctly and effectively fulfills the "Question/Instruction". The user's answer does not need to be identical to the example answer. It should just be a valid and correct response to the instruction. Be fair and accept variations, synonyms, and different but equally valid approaches.
+
+            **Respond ONLY with the following JSON format:**
+            {"correct": boolean, "feedback": "A brief explanation for why the user's answer is correct or incorrect."}`;
+            
+            const payload = {
+                contents: [{ role: "user", parts: [{ text: gradingPrompt }] }],
+                generationConfig: {
+                    responseMimeType: "application/json",
+                    responseSchema: {
+                        type: "OBJECT",
+                        properties: {
+                            "correct": { "type": "BOOLEAN" },
+                            "feedback": { "type": "STRING" }
+                        }, "required": ["correct", "feedback"]
+                    }
+                }
+            };
+            
+            const response = await fetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+            if (!response.ok) throw new Error(`API Error: ${response.status}`);
+            const result = await response.json();
+            if (result.candidates?.[0]?.content?.parts?.[0]?.text) {
+                return JSON.parse(result.candidates[0].content.parts[0].text);
+            }
+            throw new Error("Failed to parse grading from API response.");
+        }
+        
+        // --- Quiz Logic ---
+
+        function renderQuiz(quiz) {
+            const quizContainer = document.getElementById('quizContainer');
+            userAnswers = new Array(quiz.questions.length).fill(null);
+            
+            quizContainer.innerHTML = `
+                <div class="quiz-header">
+                    <h2 class="quiz-title">${quiz.title}</h2>
+                    <p class="quiz-meta">Questions: ${quiz.questions.length} | Type: ${quiz.type}</p>
+                </div>
+                <div id="questionsContainer"></div>
+            `;
+            
+            const questionsContainer = document.getElementById('questionsContainer');
+            quiz.questions.forEach((q, index) => {
+                const questionDiv = document.createElement('div');
+                questionDiv.className = 'question';
+                questionDiv.id = `question-${index}`;
+                
+                let content = '';
+                // Check the type on the question object itself
+                if (q.type === 'write-in') {
+                    content = `
+                        <div class="question-text">Q${index + 1}. ${parseMarkdown(q.question)}</div>
+                        <div class="write-in-answer" contenteditable="true" id="answer-${index}" onfocus="handleWriteInFocus(this)" onblur="handleWriteInSubmit(${index})" onkeypress="if(event.key==='Enter') this.blur()">Type your answer...</div>
+                        <button class="btn btn-fact-check" id="fact-check-btn-${index}" onclick="factCheckWriteIn(${index})">Fact Check</button>
+                        <div class="fact-check-result" id="fact-check-result-${index}"></div>
+                    `;
+                } else {
+                    const shuffledOptions = q.options.map((text, i) => ({ text, originalIndex: i })).sort(() => Math.random() - 0.5);
+                    content = `
+                        <div class="question-text">Q${index + 1}. ${parseMarkdown(q.question)}</div>
+                        <div class="options">
+                            ${shuffledOptions.map((opt, i) => `
+                                <button class="option" data-original-index="${opt.originalIndex}" data-option-key="${String.fromCharCode(97 + i)}" data-option-text="${opt.text.replace(/"/g, '&quot;')}" onclick="selectOption(this, ${opt.originalIndex === q.correct}, ${index})">
+                                    ${String.fromCharCode(65 + i)}. ${parseMarkdown(opt.text)}
+                                </button>
+                            `).join('')}
+                        </div>
+                        <button class="btn btn-fact-check" id="fact-check-btn-${index}" onclick="factCheck(${index})">Fact Check</button>
+                        <div class="fact-check-result" id="fact-check-result-${index}"></div>
+                    `;
+                }
+                questionDiv.innerHTML = content;
+                questionsContainer.appendChild(questionDiv);
+            });
+
+            renderMath();
+        }
+
+        function selectOption(element, isCorrect, questionIndex) {
+            const selectedOptionText = element.getAttribute('data-option-text');
+            const questionElement = document.getElementById(`question-${questionIndex}`);
+            const options = questionElement.querySelectorAll('.option');
+            options.forEach(opt => { opt.disabled = true; });
+
+            userAnswers[questionIndex] = { isCorrect, selectedText: selectedOptionText };
+            element.classList.add(isCorrect ? 'correct' : 'incorrect');
+
+            if (!isCorrect) {
+                const correctIndex = currentQuiz.questions[questionIndex].correct;
+                const correctOption = questionElement.querySelector(`button[data-original-index="${correctIndex}"]`);
+                if (correctOption) {
+                    correctOption.classList.add('correct');
+                }
+            }
+
+            document.getElementById(`fact-check-btn-${questionIndex}`).style.display = 'block';
+            checkCompletion();
+        }
+
+        async function handleWriteInSubmit(questionIndex) {
+            const answerElement = document.getElementById(`answer-${questionIndex}`);
+            const userAnswer = answerElement.textContent.trim();
+            if (!userAnswer || userAnswer === 'Type your answer...') return;
+
+            answerElement.contentEditable = false;
+            answerElement.classList.add('grading');
+
+            const questionData = currentQuiz.questions[questionIndex];
+
+            try {
+                const result = await gradeWriteInAnswer(questionData.question, userAnswer, questionData.correct);
+                answerElement.classList.remove('grading');
+                answerElement.classList.add(result.correct ? 'correct' : 'incorrect');
+                userAnswers[questionIndex] = { isCorrect: result.correct, feedback: result.feedback, apiError: false, selectedText: userAnswer };
+            } catch (error) {
+                console.error('Grading error:', error);
+                answerElement.classList.remove('grading');
+                userAnswers[questionIndex] = { isCorrect: null, feedback: 'Grading failed', apiError: true, selectedText: userAnswer };
+            }
+            
+            document.getElementById(`fact-check-btn-${questionIndex}`).style.display = 'block';
+            checkCompletion();
+        }
+
+        function checkCompletion() {
+            const allAnswered = userAnswers.every(answer => answer !== null);
+            if (allAnswered) {
+                setTimeout(showResultsModal, 1500);
+            }
+        }
+
+        function showResultsModal() {
+            const gradedAnswers = userAnswers.filter(a => a && !a.apiError);
+            const correctCount = gradedAnswers.filter(a => a.isCorrect).length;
+            const totalGraded = gradedAnswers.length;
+            const percentage = totalGraded > 0 ? Math.round((correctCount / totalGraded) * 100) : 0;
+            const apiErrorCount = userAnswers.length - totalGraded;
+
+            document.getElementById('gradePercentage').textContent = `${percentage}%`;
+            document.getElementById('gradeFraction').textContent = `${correctCount}/${totalGraded} Correct`;
+            
+            const apiErrorNote = document.getElementById('apiErrorNote');
+            if(apiErrorCount > 0) {
+                apiErrorNote.textContent = `${apiErrorCount} question(s) could not be graded.`;
+                apiErrorNote.style.display = 'block';
+            } else {
+                apiErrorNote.style.display = 'none';
+            }
+
+            document.getElementById('resultsModal').style.display = 'block';
+        }
+
+        // --- Fact Check Functions ---
+
+        function parseMarkdown(text) {
+            if (!text) return '';
+            
+            // Escape HTML to prevent injection, except for our specific tags
+            const escape = (s) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+
+            // 1. Process code blocks first
+            text = text.replace(/```(\w+)?\n([\s\S]*?)```/g, (match, lang, code) => {
+                const language = lang || 'plaintext';
+                const escapedCode = escape(code.trim());
+                return `<pre><code class="language-${language}">${escapedCode}</code></pre>`;
+            });
+
+            // 2. Process inline code
+            text = text.replace(/`([^`]+)`/g, (match, code) => `<code>${escape(code)}</code>`);
+
+            // 3. Process bold and italics
+            text = text.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+            text = text.replace(/\*(.*?)\*/g, '<em>$1</em>');
+
+            // 4. Wrap remaining lines in <p> tags, avoiding wrapping <pre>
+            const blocks = text.split(/(<pre>[\s\S]*?<\/pre>)/);
+            let html = '';
+            for (const block of blocks) {
+                if (block.startsWith('<pre>')) {
+                    html += block;
+                } else {
+                    html += block.trim().split('\n').map(line => line.trim() ? `<span>${line}</span><br>` : '').join('');
+                }
+            }
+
+            return html.replace(/<p><p>/g, '<p>').replace(/<\/p><\/p>/g, '</p>');
+        }
+
+
+        async function factCheck(questionIndex) {
+            const resultContainer = document.getElementById(`fact-check-result-${questionIndex}`);
+            resultContainer.innerHTML = '<div class="loading">Checking...</div>';
+            resultContainer.style.display = 'block';
+
+            const questionData = currentQuiz.questions[questionIndex];
+            const userAnswerData = userAnswers[questionIndex];
+            
+            const questionText = questionData.question;
+            const correctAnswerText = questionData.options[questionData.correct];
+            const selectedAnswerText = userAnswerData.selectedText;
+
+            const prompt = `You are a meticulous fact-checker. Your task is to validate a quiz question and its answer.
+
+            **Quiz Information:**
+            - Question: "${questionText}"
+            - The user's selected answer was: "${selectedAnswerText}"
+            - The quiz claims the correct answer is: "${correctAnswerText}"
+
+            **Your Verification Process:**
+            1.  **Validate the Premise:** First, analyze the question itself. Is its core premise true? If the premise is false (e.g., asks about a film's director but gets the year wrong), state that clearly and explain why the question is flawed.
+            2.  **Determine the Correct Answer:** If the premise is valid, find the definitive, correct answer.
+            3.  **Deliver the Verdict:** State clearly whether the quiz's claimed correct answer ("${correctAnswerText}") is TRUE or FALSE.
+            4.  **Provide a Concise Explanation:** Briefly explain your findings. If the question was flawed, explain the flaw. If the quiz's answer was wrong, provide the correct answer and explain why. Format your response with Markdown for clarity (using **bold** text, \`inline code\`, and \`\`\`code blocks\`\`\`).`;
+            
+            try {
+                const explanation = await getGeminiTextResponse(prompt);
+                resultContainer.innerHTML = parseMarkdown(explanation);
+                renderMath();
+            } catch (error) {
+                console.error('Fact Check API error:', error);
+                resultContainer.innerHTML = `An error occurred while checking the fact: ${error.message}`;
+            }
+        }
+
+        async function factCheckWriteIn(questionIndex) {
+            const resultContainer = document.getElementById(`fact-check-result-${questionIndex}`);
+            resultContainer.innerHTML = '<div class="loading">Checking...</div>';
+            resultContainer.style.display = 'block';
+
+            const questionData = currentQuiz.questions[questionIndex];
+            const userAnswerData = userAnswers[questionIndex];
+            
+            const questionText = questionData.question;
+            const correctAnswerText = questionData.correct;
+            const selectedAnswerText = userAnswerData.selectedText;
+            const graderFeedback = userAnswerData.feedback;
+
+            const prompt = `You are a meticulous fact-checker. Your task is to validate a quiz question, its answer, and the AI's grading.
+
+            **Quiz Information:**
+            - Question: "${questionText}"
+            - The user's answer was: "${selectedAnswerText}"
+            - The quiz claims the correct answer is: "${correctAnswerText}"
+            - Our AI grader said: "${graderFeedback}"
+
+            **Your Verification Process:**
+            1.  **Validate the Premise:** First, analyze the question itself. Is its core premise true? If the premise is false, state that clearly and explain why the question is flawed.
+            2.  **Determine the Correct Answer:** If the premise is valid, find the definitive, correct answer.
+            3.  **Deliver the Verdict:** State clearly whether the quiz's claimed correct answer ("${correctAnswerText}") is TRUE or FALSE.
+            4.  **Evaluate the Grading:** Comment on whether our AI grader's assessment ("${graderFeedback}") was fair and accurate.
+            5.  **Provide a Concise Explanation:** Briefly explain your findings and any discrepancies. Format your response with Markdown for clarity (using **bold** text, \`inline code\`, and \`\`\`code blocks\`\`\`).`;
+            
+            try {
+                const explanation = await getGeminiTextResponse(prompt);
+                resultContainer.innerHTML = parseMarkdown(explanation);
+                renderMath();
+            } catch (error) {
+                console.error('Fact Check API error:', error);
+                resultContainer.innerHTML = `An error occurred while checking the fact: ${error.message}`;
+            }
+        }
+
+        // --- Utility & Accessibility Functions ---
+        
+        document.getElementById('promptInput').addEventListener('keydown', function(event) {
+            // Check if Enter is pressed without the Shift key
+            if (event.key === 'Enter' && !event.shiftKey) {
+                event.preventDefault(); // Prevents adding a new line
+                const text = this.value.trim();
+                agentEngine(text);
+            }
+        });
+
+        function renderMath() {
+            if (window.MathJax) {
+                window.MathJax.typesetPromise();
+            }
+        }
+
+        function handleWriteInFocus(element) {
+            if (element.textContent === 'Type your answer...') {
+                element.textContent = '';
+                element.classList.add('answered');
+            }
+        }
+
+        function handleGlobalKeydown(event) {
+            if (document.getElementById('resultsModal').style.display === 'block' || 
+                event.target.tagName === 'TEXTAREA' || 
+                event.target.tagName === 'INPUT' ||
+                event.target.isContentEditable) {
+                return;
+            }
+
+            const validKeys = ['a', 'b', 'c', 'd'];
+            const pressedKey = event.key.toLowerCase();
+
+            if (!validKeys.includes(pressedKey)) {
+                return;
+            }
+
+            const firstUnansweredIndex = userAnswers.findIndex(answer => answer === null);
+            
+            if (firstUnansweredIndex === -1 || !currentQuiz.questions[firstUnansweredIndex].options) {
+                return;
+            }
+
+            const questionElement = document.getElementById(`question-${firstUnansweredIndex}`);
+            if (!questionElement) return;
+
+            const optionButton = questionElement.querySelector(`.option[data-option-key="${pressedKey}"]`);
+            
+            if (optionButton && !optionButton.disabled) {
+                event.preventDefault();
+                optionButton.click();
+            }
+        }
+        
+        document.addEventListener('keydown', handleGlobalKeydown);
+
+
+        function closeModal() { document.getElementById('resultsModal').style.display = 'none'; }
+        function openHelpModal() { document.getElementById('helpModal').style.display = 'block'; }
+        function closeHelpModal() { document.getElementById('helpModal').style.display = 'none'; }
+        function restartQuiz() { closeModal(); renderQuiz(currentQuiz); }
+        
+        function downloadQuiz() {
+            if (!currentQuiz) { alert('Generate a quiz first.'); return; }
+            const dataStr = JSON.stringify(currentQuiz, null, 2);
+            const blob = new Blob([dataStr], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `${currentQuiz.title.replace(/\s/g, '_')}.json`;
+            a.click();
+            URL.revokeObjectURL(url);
+        }
+
+        function loadFromFile(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                try {
+                    currentQuiz = JSON.parse(e.target.result);
+                    document.getElementById('promptInput').value = `Loaded from file: ${file.name}`;
+                    renderQuiz(currentQuiz);
+                } catch (error) {
+                    alert('Invalid JSON file.');
+                }
+            };
+            reader.readAsText(file);
+        }
+
+        function shareResultsToX() {
+            const gradeFractionText = document.getElementById('gradeFraction').textContent;
+            const promptText = document.getElementById('promptInput').value.trim();
+            const pageUrl = "https://g.co/gemini/share/b563231c94b4";
+
+            let tweetText = `I scored ${gradeFractionText.replace(' Correct', '')} on an AI-generated quiz!`;
+
+            if (promptText && !promptText.startsWith('Loaded from file:')) {
+                const maxPromptLength = 100;
+                const truncatedPrompt = promptText.length > maxPromptLength ? promptText.substring(0, maxPromptLength) + '...' : promptText;
+                tweetText += ` Topic: "${truncatedPrompt}".`;
+            }
+
+            tweetText += ` Create your own with the AI Quiz Generator.`;
+
+            const shareUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(tweetText)}&url=${encodeURIComponent(pageUrl)}`;
+            
+            window.open(shareUrl, '_blank', 'rel=noopener,noreferrer,width=550,height=420');
+        }
+
+        window.onclick = (event) => {
+            if (event.target == document.getElementById('resultsModal')) {
+                closeModal();
+            }
+            if (event.target == document.getElementById('helpModal')) {
+                closeHelpModal();
+            }
+        };
+    </script>
+    <input type="file" id="fileInput" class="file-input" accept=".json" onchange="loadFromFile(event)">
+</body>
+</html>
